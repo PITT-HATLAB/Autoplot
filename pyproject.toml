@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools >= 48", "wheel >= 0.29.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoplot"
+version = "0.1.0"
+description = "Interactive experiment data visualization library using Panel, HoloViews, and Xarray."
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[project.scripts]
+run_autoplot = "autoplot.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
