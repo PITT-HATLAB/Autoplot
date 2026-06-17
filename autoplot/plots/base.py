@@ -155,7 +155,7 @@ class PlotNode(Node):
         return []
 
     def process(self):
-        self.data_out = copy.copy(self.data_in)
+        self.data_out = self.data_in.copy(deep=False) if self.data_in is not None else None
         self._fit_axis_options = self.fit_axis_options()
         if list(self.select_fit_axis.options) != self._fit_axis_options:
             self.select_fit_axis = pn.widgets.Select(
