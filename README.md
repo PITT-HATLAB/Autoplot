@@ -6,6 +6,8 @@ Extensible to any data type that can be converted to a xarray dataset.
 
 ![Python >=3.10](https://img.shields.io/badge/python-%3E%3D3.10-blue)
 
+![Screenshot](example_pic.png)
+
 ---
 
 ## Features
