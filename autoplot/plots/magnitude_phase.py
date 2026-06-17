@@ -30,7 +30,6 @@ class MagnitudePhasePlot(PlotNode):
             self.plot_type_select.value = "Magnitude & Phase"
 
     def process(self):
-        import numpy as np
 
         assert isinstance(
             self.data_in, xr.Dataset
@@ -43,10 +42,10 @@ class MagnitudePhasePlot(PlotNode):
         complex_data = real + 1j * imaginary
 
         magnitude = np.abs(complex_data).T
-        phase = np.angle(complex_data, deg=True).T
+        phase_rad = np.angle(complex_data)
+        phase = np.rad2deg(phase_rad).T
 
         freq_dim = indep[0] if isinstance(indep, list) and indep else indep
-        phase_rad = np.angle(complex_data)
         phase_rad_values = (
             phase_rad.values
             if hasattr(phase_rad, "values")
