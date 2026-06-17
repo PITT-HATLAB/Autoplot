@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -40,14 +41,20 @@ SYM = {
 
 
 class Handler(FileSystemEventHandler):
+    DEBOUNCE_S = 0.5
+
     def __init__(self, update_callback):
         self.update_callback = update_callback
+        self._last_fire = 0.0
 
     def on_created(self, event):
         if not event.is_directory:
             file_type = Path(event.src_path).suffix
             if file_type == ".ddh5":
-                self.update_callback(event)
+                now = time.monotonic()
+                if now - self._last_fire >= self.DEBOUNCE_S:
+                    self._last_fire = now
+                    self.update_callback(event)
 
 
 class DataSelect(pn.viewable.Viewer):
