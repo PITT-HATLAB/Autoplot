@@ -1,6 +1,7 @@
 """Tests for plot nodes."""
 
 import numpy as np
+import panel as pn
 import xarray as xr
 import pytest
 
@@ -8,6 +9,7 @@ from autoplot.nodes import Node
 from autoplot.plots.value import ValuePlot
 from autoplot.plots.complex_hist import ComplexHist
 from autoplot.plots.magnitude_phase import MagnitudePhasePlot
+from autoplot.plots.datatable import DataTable
 
 
 class TestValuePlot:
@@ -57,3 +59,24 @@ class TestMagnitudePhasePlot:
         assert "Phase" in out.data_vars
         assert "Phase_unwrap" in out.data_vars
         assert "Phase_unwrap_sub" in out.data_vars
+
+
+class TestDataTable:
+    def test_plot_panel_returns_markdown_when_no_data(self):
+        plot = DataTable()
+        result = plot.plot_panel()
+        assert result == "*No data loaded.*"
+
+    def test_plot_panel_returns_html_pane_with_dataset(self):
+        ds = xr.Dataset({
+            "I": (["x"], np.array([1.0, 2.0, 3.0])),
+        }, coords={"x": [0, 1, 2]})
+
+        plot = DataTable(data_in=ds)
+        plot.process()
+        result = plot.plot_panel()
+        assert isinstance(result, pn.pane.HTML)
+
+    def test_fit_axis_options_empty(self):
+        plot = DataTable()
+        assert plot.fit_axis_options() == []

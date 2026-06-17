@@ -40,7 +40,7 @@ class DDH5Loader(BaseLoader, Node):
         self.refresh_widget.param.watch(self._on_refresh_changed, "value")
 
         self.grid_toggle = pn.widgets.Switch(
-            value=True, name="Prefer pre-gridded", align="end"
+            value=False, name="Prefer pre-gridded", align="end"
         )
         self.auto_load_switch = pn.widgets.Switch(
             value=False, name="Auto-load on select", align="center"

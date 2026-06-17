@@ -737,8 +737,12 @@ def make_template(config):
     def on_pipeline_output(*events):
         data = events[0].new
         if data is not None:
+            from .nodes import Node as _Node
+            units = _Node.units_from_dataset(data)
             for node in plot_nodes.values():
                 node.data_in = data
+                node.units_in = units
+                node.units_out = units
                 node.path = loader.file_path
                 node.fit_data_path = Path(loader.file_path).parent / "fit_data.json"
                 node.process()

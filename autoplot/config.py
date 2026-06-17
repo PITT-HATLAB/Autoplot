@@ -32,6 +32,7 @@ class AutoplotConfig:
         "value": "autoplot.plots.value.ValuePlot",
         "readout_hist": "autoplot.plots.complex_hist.ComplexHist",
         "magnitude_phase": "autoplot.plots.magnitude_phase.MagnitudePhasePlot",
+        "data_table": "autoplot.plots.datatable.DataTable",
     })
     fits: list[str] = field(default_factory=lambda: [
         "labcore.analysis.fitfuncs.generic.Cosine",
@@ -64,6 +65,7 @@ plots:
   value: autoplot.plots.value.ValuePlot
   readout_hist: autoplot.plots.complex_hist.ComplexHist
   magnitude_phase: autoplot.plots.magnitude_phase.MagnitudePhasePlot
+  data_table: autoplot.plots.datatable.DataTable
 
 fits:
   - labcore.analysis.fitfuncs.generic.Cosine

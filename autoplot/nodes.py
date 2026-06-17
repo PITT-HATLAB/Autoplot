@@ -128,6 +128,22 @@ class Node(pn.viewable.Viewer):
                     ret[d[:-3]] = dict(real=d, imag=im_dep)
         return ret
 
+    @staticmethod
+    def units_from_dataset(data: Optional[Data]) -> dict[str, str]:
+        if data is None or isinstance(data, pd.DataFrame):
+            return {}
+        units = {}
+        for dim in list(data.dims) + list(data.data_vars):
+            if dim in data.coords:
+                unit = data.coords[dim].attrs.get("units", None)
+            elif dim in data.data_vars:
+                unit = data[dim].attrs.get("units", None)
+            else:
+                unit = None
+            if unit is not None:
+                units[dim] = unit
+        return units
+
     def dim_label(self, dim: str, which: str = "out") -> str:
         units = self.units_out if which == "out" else self.units_in
         if dim in units and units[dim] is not None:
@@ -162,10 +178,15 @@ class Pipeline(pn.viewable.Viewer):
 
     def run(self) -> None:
         data = None
+        units = {}
         for node in self._nodes:
             node.data_in = data
+            node.units_in = units
             node.process()
             data = node.data_out
+            if data is not None and not node.units_out:
+                node.units_out = Node.units_from_dataset(data)
+            units = node.units_out
         self.data_out = data
 
 

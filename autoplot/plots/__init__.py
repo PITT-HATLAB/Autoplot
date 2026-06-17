@@ -7,6 +7,7 @@ from .base import PlotNode, plot_df_as_2d, plot_xr_as_2d
 from .value import ValuePlot
 from .complex_hist import ComplexHist
 from .magnitude_phase import MagnitudePhasePlot
+from .datatable import DataTable
 
 logger = logging.getLogger(__name__)
 
