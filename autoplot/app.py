@@ -81,6 +81,7 @@ class DataSelect(pn.viewable.Viewer):
         self.size = size
         self.data_root = data_root
         self.data_sets = self.group_data(find_data(root=data_root))
+        self._search_regex = re.compile(".*")
 
         self.layout = pn.Column()
 
@@ -232,15 +233,8 @@ class DataSelect(pn.viewable.Viewer):
 
     @pn.depends("_group_select_widget.value")
     def data_select(self):
-        active_search = False
-        r = re.compile(".*")
-        if hasattr(self, "text_input"):
-            val = self.text_input.value_input
-            if val is not None and val != "":
-                r = re.compile(".*" + str(val) + ".*")
-                active_search = True
-
-        opts = self.get_data_options(active_search, r)
+        active_search = bool(self.text_input.value_input)
+        opts = self.get_data_options(active_search, self._search_regex)
 
         old_value = self._data_select_widget.value
         self._data_select_widget.options = opts
@@ -251,8 +245,6 @@ class DataSelect(pn.viewable.Viewer):
     def get_data_options(self, active_search=True, r=None):
         if r is None:
             r = re.compile(".*")
-        if isinstance(r, str):
-            r = re.compile(r)
         opts = OrderedDict()
         for d in self._group_select_widget.value:
             for dset in sorted(self.data_sets[d].keys())[::-1]:
@@ -581,10 +573,13 @@ class DataSelect(pn.viewable.Viewer):
 
     @pn.depends("text_input.value_input")
     def text_input_repeater(self):
-        self.typed_value.value = (
-            f"Current Search: {self.text_input.value_input}"
-        )
-        self.search_term = self.text_input.value_input
+        val = self.text_input.value_input
+        self.typed_value.value = f"Current Search: {val}"
+        self.search_term = val
+        if val:
+            self._search_regex = re.compile(".*" + re.escape(val) + ".*")
+        else:
+            self._search_regex = re.compile(".*")
         return self.typed_value
 
     def update_group_options(self, event):
