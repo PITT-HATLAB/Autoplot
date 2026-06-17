@@ -158,12 +158,7 @@ class PlotNode(Node):
         self.data_out = self.data_in.copy(deep=False) if self.data_in is not None else None
         self._fit_axis_options = self.fit_axis_options()
         if list(self.select_fit_axis.options) != self._fit_axis_options:
-            self.select_fit_axis = pn.widgets.Select(
-                name="Fit Axis",
-                options=self._fit_axis_options,
-            )
-            self.select_fit_axis.param.watch(self.set_fit_box, "value")
-            self.fit_layout[0] = pn.Row(self.fit_button, self.select_fit_axis)
+            self.select_fit_axis.options = self._fit_axis_options
         for axis in self.fit_axis_options():
             if axis in self.fit_dict:
                 func_name = self.fit_dict[axis].get("fit_function", "")
