@@ -12,11 +12,17 @@ from .base import PlotNode, plot_xr_as_2d
 class MagnitudePhasePlot(PlotNode):
     """Plot magnitude and phase (including unwrapped/delay-corrected)."""
 
+    magnitude_db = param.Boolean(default=False, doc="Plot magnitude in dB scale.")
+
     def __init__(self, *args, **kwargs):
         self.xy_select = XYSelect()
         self._old_indep = []
 
         super().__init__(*args, **kwargs)
+
+        self.mag_db_cb = pn.widgets.Checkbox.from_param(
+            self.param.magnitude_db, name="Magnitude (dB)"
+        )
 
         self.graph_types = {
             "None": None,
@@ -87,12 +93,14 @@ class MagnitudePhasePlot(PlotNode):
         phase_unwrap = phase_unwrap - phase_unwrap.mean()
         phase_unwrap_sub = phase_unwrap_sub - phase_unwrap_sub.mean()
 
-        super().process()
+        enriched = self.data_in.copy(deep=True)
+        enriched["Magnitude"] = (indep, magnitude)
+        enriched["Phase"] = (indep, phase)
+        enriched["Phase_unwrap"] = phase_unwrap
+        enriched["Phase_unwrap_sub"] = phase_unwrap_sub
+        self.data_in = enriched
 
-        self.data_out["Magnitude"] = (indep, magnitude)
-        self.data_out["Phase"] = (indep, phase)
-        self.data_out["Phase_unwrap"] = phase_unwrap
-        self.data_out["Phase_unwrap_sub"] = phase_unwrap_sub
+        super().process()
 
     @pn.depends("data_out")
     def plot_options_panel(self):
@@ -110,9 +118,9 @@ class MagnitudePhasePlot(PlotNode):
                 self.xy_select.value = (opts[-1], "None")
         self._old_indep = indep
 
-        return self.xy_select
+        return pn.Row(self.xy_select, self.mag_db_cb)
 
-    @pn.depends("data_out", "xy_select.value", "refresh_graph")
+    @pn.depends("data_out", "xy_select.value", "refresh_graph", "magnitude_db")
     def plot_panel(self):
         self.refresh_graph = False
         plot = "*No valid options chosen.*"
@@ -123,12 +131,29 @@ class MagnitudePhasePlot(PlotNode):
 
         else:
             if y in ["None", None]:
-                plot_m = self.data_out.hvplot.line(
-                    x=x,
-                    xlabel=self.dim_label(x),
-                    y=self.get_data_fit_names("Magnitude"),
-                    shared_axes=False,
-                )
+                if self.magnitude_db:
+                    mag_label = "Magnitude (dB)"
+                    mag_data = 20 * np.log10(
+                        self.data_out["Magnitude"].clip(min=1e-30)
+                    )
+                    plot_m = mag_data.hvplot.line(
+                        x=x, xlabel=self.dim_label(x),
+                        ylabel=mag_label, shared_axes=False,
+                    )
+                    for col in ["Magnitude_fit", "Magnitude_fit*"]:
+                        if col in self.data_out:
+                            fit_db = 20 * np.log10(
+                                self.data_out[col].clip(min=1e-30)
+                            )
+                            plot_m = plot_m * fit_db.hvplot.line(
+                                x=x, shared_axes=False,
+                            )
+                else:
+                    plot_m = self.data_out.hvplot.line(
+                        x=x, xlabel=self.dim_label(x),
+                        y=self.get_data_fit_names("Magnitude"),
+                        shared_axes=False,
+                    )
                 phase_plot = self.data_out.hvplot.line(
                     x=x,
                     xlabel=self.dim_label(x),

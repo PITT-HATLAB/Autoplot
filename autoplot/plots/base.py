@@ -180,6 +180,10 @@ class PlotNode(Node):
             pn.state.notifications.error(
                 "Please select a Fit Axis first.", duration=3000)
             return
+        if self.fit_button.clicked in (None, "None"):
+            if self.fit_box is not None:
+                self.remove_fit_box()
+            return
         if fitted is None:
             fitted = False
             if self.select_fit_axis.value in self.fit_dict:
