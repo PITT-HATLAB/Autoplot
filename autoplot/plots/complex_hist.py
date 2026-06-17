@@ -57,6 +57,7 @@ class ComplexHist(PlotNode):
                 xlim=xlim,
                 ylim=ylim,
                 clabel="count",
+                title=self.plot_title,
             )
             layout.append(p)
 

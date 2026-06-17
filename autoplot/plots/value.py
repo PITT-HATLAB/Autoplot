@@ -56,15 +56,15 @@ class ValuePlot(PlotNode):
         elif y in ["None", None]:
             if isinstance(self.data_out, pd.DataFrame):
                 plot = self.data_out.hvplot.line(
-                    x=x, xlabel=self.dim_label(x),
+                    x=x, xlabel=self.dim_label(x), title=self.plot_title,
                     y=self.get_data_fit_names(self.fit_axis_options()),
-                ) * self.data_out.hvplot.scatter(x=x)
+                ) * self.data_out.hvplot.scatter(x=x, title=self.plot_title)
 
             elif isinstance(self.data_out, xr.Dataset):
                 plot = self.data_out.hvplot.line(
-                    x=x, xlabel=self.dim_label(x),
+                    x=x, xlabel=self.dim_label(x), title=self.plot_title,
                     y=self.get_data_fit_names(self.fit_axis_options()),
-                ) * self.data_out.hvplot.scatter(x=x)
+                ) * self.data_out.hvplot.scatter(x=x, title=self.plot_title)
             else:
                 raise NotImplementedError
 
@@ -75,6 +75,7 @@ class ValuePlot(PlotNode):
                     dim_labels=self.dim_labels(),
                     graph_axes=self.get_data_fit_names(
                         self.fit_axis_options()),
+                    title=self.plot_title,
                 )
             elif isinstance(self.data_out, xr.Dataset):
                 plot = plot_xr_as_2d(
@@ -82,6 +83,7 @@ class ValuePlot(PlotNode):
                     dim_labels=self.dim_labels(),
                     graph_axes=self.get_data_fit_names(
                         self.fit_axis_options()),
+                    title=self.plot_title,
                 )
             else:
                 raise NotImplementedError

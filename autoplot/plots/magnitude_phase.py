@@ -96,8 +96,11 @@ class MagnitudePhasePlot(PlotNode):
         enriched = self.data_in.copy(deep=True)
         enriched["Magnitude"] = (indep, magnitude)
         enriched["Phase"] = (indep, phase)
+        enriched["Phase"].attrs["units"] = "deg"
         enriched["Phase_unwrap"] = phase_unwrap
+        enriched["Phase_unwrap"].attrs["units"] = "deg"
         enriched["Phase_unwrap_sub"] = phase_unwrap_sub
+        enriched["Phase_unwrap_sub"].attrs["units"] = "deg"
         self.data_in = enriched
 
         super().process()
@@ -132,13 +135,15 @@ class MagnitudePhasePlot(PlotNode):
         else:
             if y in ["None", None]:
                 if self.magnitude_db:
-                    mag_label = "Magnitude (dB)"
+                    mag_label = "Magnitude"
+                    self.data_out["Magnitude"].attrs["units"] = "dB"
                     mag_data = 20 * np.log10(
                         self.data_out["Magnitude"].clip(min=1e-30)
                     )
                     plot_m = mag_data.hvplot.line(
                         x=x, xlabel=self.dim_label(x),
                         ylabel=mag_label, shared_axes=False,
+                        title=self.plot_title,
                     )
                     for col in ["Magnitude_fit", "Magnitude_fit*"]:
                         if col in self.data_out:
@@ -146,31 +151,31 @@ class MagnitudePhasePlot(PlotNode):
                                 self.data_out[col].clip(min=1e-30)
                             )
                             plot_m = plot_m * fit_db.hvplot.line(
-                                x=x, shared_axes=False,
+                                x=x, shared_axes=False, title=self.plot_title,
                             )
                 else:
                     plot_m = self.data_out.hvplot.line(
                         x=x, xlabel=self.dim_label(x),
                         y=self.get_data_fit_names("Magnitude"),
-                        shared_axes=False,
+                        shared_axes=False, title=self.plot_title,
                     )
                 phase_plot = self.data_out.hvplot.line(
                     x=x,
                     xlabel=self.dim_label(x),
                     y=self.get_data_fit_names("Phase"),
-                    shared_axes=False,
+                    shared_axes=False, title=self.plot_title,
                 )
                 phase_unwrap_plot = self.data_out.hvplot.line(
                     x=x,
                     xlabel=self.dim_label(x),
                     y="Phase_unwrap",
-                    shared_axes=False,
+                    shared_axes=False, title=self.plot_title,
                 )
                 phase_unwrap_sub_plot = self.data_out.hvplot.line(
                     x=x,
                     xlabel=self.dim_label(x),
                     y="Phase_unwrap_sub",
-                    shared_axes=False,
+                    shared_axes=False, title=self.plot_title,
                 )
                 plot = pn.Column(
                     plot_m,
@@ -179,12 +184,19 @@ class MagnitudePhasePlot(PlotNode):
                     phase_unwrap_sub_plot,
                 )
             else:
+                plot_data = self.data_out
+                if self.magnitude_db and "Magnitude" in plot_data:
+                    plot_data = plot_data.copy(deep=False)
+                    plot_data["Magnitude"] = 20 * np.log10(
+                        plot_data["Magnitude"].clip(min=1e-30)
+                    )
                 plot = plot_xr_as_2d(
-                    self.data_out, x, y,
+                    plot_data, x, y,
                     dim_labels=self.dim_labels(),
                     graph_axes=self.get_data_fit_names(
                         self.fit_axis_options(),
                     ),
+                    title=self.plot_title,
                 )
                 try:
                     plot = plot.cols(2)

@@ -1,0 +1,29 @@
+# Autoplot Configuration
+# Generated automatically. Edit to customize.
+
+server:
+  port: 19530
+  address: "0.0.0.0"
+  allow_origin: [0.0.0.0:19530,hatlabermsmt01:19530,localhost:19530,hatlabpc:19530,127.0.0.1:19530,desktop-3tk75nb.stdusr.yale.internal:19530]
+  # allow_origin: ["host1:19530", "host2:19530"]
+
+watch:
+  directory: "."
+  extensions: [".ddh5"]
+
+loaders:
+  - autoplot.loaders.ddh5.DDH5Loader
+  # - autoplot.loaders.netcdf.NetCDFLoader
+  # - autoplot.loaders.zarr.ZarrLoader
+
+plots:
+  value: autoplot.plots.value.ValuePlot
+  readout_hist: autoplot.plots.complex_hist.ComplexHist
+  magnitude_phase: autoplot.plots.magnitude_phase.MagnitudePhasePlot
+  data_table: autoplot.plots.datatable.DataTable
+
+fits:
+  - labcore.analysis.fitfuncs.generic.Cosine
+  - labcore.analysis.fitfuncs.generic.Exponential
+  - labcore.analysis.fitfuncs.generic.ExponentialDecay
+  - labcore.analysis.fitfuncs.generic.ExponentiallyDecayingSine

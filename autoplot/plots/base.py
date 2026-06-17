@@ -154,6 +154,13 @@ class PlotNode(Node):
     def fit_axis_options(self) -> list:
         return []
 
+    @property
+    def plot_title(self) -> str:
+        if self.path is None:
+            return ""
+        p = Path(str(self.path))
+        return p.parent.name
+
     def process(self):
         self.data_out = self.data_in.copy(deep=False) if self.data_in is not None else None
         self._fit_axis_options = self.fit_axis_options()
@@ -520,7 +527,7 @@ class PlotNode(Node):
         pass
 
 
-def plot_df_as_2d(df, x, y, dim_labels=None, graph_axes=None):
+def plot_df_as_2d(df, x, y, dim_labels=None, graph_axes=None, title=None):
     import numpy as np
 
     if graph_axes is None:
@@ -540,6 +547,7 @@ def plot_df_as_2d(df, x, y, dim_labels=None, graph_axes=None):
                     xlabel=dim_labels.get(x, x),
                     ylabel=dim_labels.get(y, y),
                     clabel=f"Mean {dim_labels.get(d, d)}",
+                    title=title,
                 ).aggregate(function=np.mean)
                 for d in (deps or [])
             ]
@@ -549,11 +557,12 @@ def plot_df_as_2d(df, x, y, dim_labels=None, graph_axes=None):
             x=x, y=y,
             xlabel=dim_labels.get(x, x),
             ylabel=dim_labels.get(y, y),
+            title=title,
         )
     return "*that's currently not supported :(*"
 
 
-def plot_xr_as_2d(ds, x, y, dim_labels=None, graph_axes=None):
+def plot_xr_as_2d(ds, x, y, dim_labels=None, graph_axes=None, title=None):
     if graph_axes is None:
         graph_axes = []
     if dim_labels is None:
@@ -580,6 +589,7 @@ def plot_xr_as_2d(ds, x, y, dim_labels=None, graph_axes=None):
                     xlabel=dim_labels.get(x, x),
                     ylabel=dim_labels.get(y, y),
                     clabel=f"Mean {dim_labels.get(d, d)}",
+                    title=title,
                 )
             else:
                 plot += ds.get(d).hvplot.quadmesh(
@@ -587,6 +597,7 @@ def plot_xr_as_2d(ds, x, y, dim_labels=None, graph_axes=None):
                     xlabel=dim_labels.get(x, x),
                     ylabel=dim_labels.get(y, y),
                     clabel=f"Mean {dim_labels.get(d, d)}",
+                    title=title,
                 )
         try:
             return plot.cols(1)
