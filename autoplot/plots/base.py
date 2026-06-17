@@ -157,6 +157,13 @@ class PlotNode(Node):
     def process(self):
         self.data_out = copy.copy(self.data_in)
         self._fit_axis_options = self.fit_axis_options()
+        if list(self.select_fit_axis.options) != self._fit_axis_options:
+            self.select_fit_axis = pn.widgets.Select(
+                name="Fit Axis",
+                options=self._fit_axis_options,
+            )
+            self.select_fit_axis.param.watch(self.set_fit_box, "value")
+            self.fit_layout[0] = pn.Row(self.fit_button, self.select_fit_axis)
         for axis in self.fit_axis_options():
             if axis in self.fit_dict:
                 func_name = self.fit_dict[axis].get("fit_function", "")
@@ -174,6 +181,10 @@ class PlotNode(Node):
                     pn.state.notifications.error(msg, duration=0)
 
     def set_fit_box(self, *events, fitted=None):
+        if self.select_fit_axis.value is None:
+            pn.state.notifications.error(
+                "Please select a Fit Axis first.", duration=3000)
+            return
         if fitted is None:
             fitted = False
             if self.select_fit_axis.value in self.fit_dict:
@@ -232,7 +243,7 @@ class PlotNode(Node):
         fit_class = PlotNode.FITS[selected]
         saved_args = self.get_arguments()
         sig_params = list(inspect.signature(fit_class.model).parameters.keys())
-        for i, var in enumerate(sig_params):
+        for var in sig_params:
             if var == "coordinates":
                 continue
             name = var
@@ -258,7 +269,7 @@ class PlotNode(Node):
                         value=saved_args.get(var, 0),
                     )
                 )
-            objs[i + 1].param.watch(self.update_fit_args, "value")
+            objs[-1].param.watch(self.update_fit_args, "value")
 
         self.reguess_fit_button = pn.widgets.Button(
             name="Reguess", align="center", button_type="default", disabled=False

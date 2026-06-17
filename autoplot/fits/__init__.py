@@ -26,11 +26,17 @@ def discover_from_config(fits_config: list[str]) -> dict[str, type]:
     return _registry
 
 
-def load_fits() -> None:
-    """Load and register all fit classes from autoplotConfig.yml.
+def load_fits(fits_config: Optional[list[str]] = None) -> None:
+    """Load and register all fit classes.
 
-    Called on first use in PlotNode.
+    If *fits_config* is given, register those classes directly.
+    Otherwise, read fits from ``autoplotConfig.yml`` in the current
+    working directory (backward-compatible default).
     """
+    if fits_config is not None:
+        discover_from_config(fits_config)
+        return
+
     import ruamel.yaml
     cwd = Path.cwd()
     config_path = cwd / "autoplotConfig.yml"

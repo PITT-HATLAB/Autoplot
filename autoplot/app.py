@@ -645,10 +645,12 @@ def make_template(config):
 
     from .loaders.ddh5 import DDH5Loader
     from .nodes import Pipeline, SplitComplexNode, AverageNode, RotateIQNode
-    from .plots.value import ValuePlot
 
     from .fits import load_fits
-    load_fits()
+    load_fits(config.fits)
+
+    from .plots.base import PlotNode
+    PlotNode.load_fits_from_config(config.fits)
 
     data_root = Path(config.watch.directory)
     ds = DataSelect(data_root)
@@ -678,7 +680,49 @@ def make_template(config):
         collapsed=True,
     )
 
-    plot_node = ValuePlot()
+    from .plots import discover_from_config as discover_plots, get_graph_types
+    discover_plots(config.plots)
+    plot_types = get_graph_types()
+
+    plot_nodes = {}
+    for name, cls in plot_types.items():
+        plot_nodes[name] = cls()
+
+    plot_type_radio = pn.widgets.RadioButtonGroup(
+        name="Plot Types",
+        options=list(plot_types.keys()),
+        value="value" if "value" in plot_types else list(plot_types.keys())[0],
+        button_type="default",
+        styles={"background": "white"},
+    )
+
+    @pn.depends(plot_type_radio.param.value)
+    def fit_save_row(selected):
+        node = plot_nodes.get(selected or "")
+        if node is None:
+            return pn.Row()
+        return pn.Row(node.fit_card, node.save_card)
+
+    @pn.depends(plot_type_radio.param.value)
+    def plot_area(selected):
+        if not selected:
+            return pn.pane.Markdown("*No plot types selected.*")
+        node = plot_nodes.get(selected)
+        if node is None:
+            return pn.pane.Markdown("*No plot types selected.*")
+        option_items = []
+        if hasattr(node, "plot_options_panel"):
+            option_items.append(node.plot_options_panel)
+        else:
+            option_items.append(node.plot_type_select)
+        if hasattr(node, "gb_select"):
+            option_items.append(node.gb_select)
+        return pn.Column(
+            plot_type_radio,
+            pn.Row(*option_items),
+            node.plot_panel,
+            sizing_mode="stretch_width",
+        )
 
     def on_data_selected(*events):
         path = events[0].new
@@ -691,8 +735,12 @@ def make_template(config):
     def on_pipeline_output(*events):
         data = events[0].new
         if data is not None:
-            plot_node.data_in = data
-            plot_node.process()
+            for node in plot_nodes.values():
+                node.data_in = data
+                node.path = loader.file_path
+                node.fit_data_path = Path(loader.file_path).parent / "fit_data.json"
+                node.process()
+                node.toggle_save_buttons()
 
     ds.param.watch(on_data_selected, ["selected_path"])
     pipeline.param.watch(on_pipeline_output, ["data_out"])
@@ -720,16 +768,12 @@ def make_template(config):
                     loader.load_button,
                     loader.loading_card,
                     preproc_card,
-                    plot_node.fit_card,
-                    plot_node.save_card,
+                    fit_save_row,
                 ),
                 loader.status,
                 pn.Row(
                     pn.Column(height=600, width=10),
-                    pn.Column(
-                        plot_node.plot_options_panel,
-                        plot_node.plot_panel,
-                    ),
+                    plot_area,
                 ),
             ),
         ],

@@ -172,5 +172,7 @@ class MagnitudePhasePlot(PlotNode):
     def fit_axis_options(self):
         return ["Magnitude", "Phase"]
 
-    def get_data_fit_names(self, axis_name):
-        return PlotNode.get_data_fit_names(self, axis_name, omit_axes=[])
+    def get_data_fit_names(self, axis_name, omit_axes=None):
+        if omit_axes is None:
+            omit_axes = []
+        return PlotNode.get_data_fit_names(self, axis_name, omit_axes=omit_axes)
