@@ -40,7 +40,7 @@ class DDH5Loader(BaseLoader, Node):
         self.refresh_widget.param.watch(self._on_refresh_changed, "value")
 
         self.grid_toggle = pn.widgets.Switch(
-            value=True, name="Auto-grid", align="end"
+            value=True, name="Prefer pre-gridded", align="end"
         )
         self.auto_load_switch = pn.widgets.Switch(
             value=False, name="Auto-load on select", align="center"
@@ -85,9 +85,16 @@ class DDH5Loader(BaseLoader, Node):
         from labcore.data.ddh5_xr import ddh5_to_xarray
 
         data_dir = path.parent
-        gridded_path = data_dir / "data_gridded.ddh5"
-        if gridded_path.exists():
-            load_path = gridded_path
+        if self.grid_toggle.value:
+            gridded_path = data_dir / "data_gridded.ddh5"
+            if gridded_path.exists():
+                load_path = gridded_path
+            else:
+                pn.state.notifications.warning(
+                    "Gridded data not found, falling back to original data.",
+                    duration=2000,
+                )
+                load_path = data_dir / "data.ddh5"
         else:
             load_path = data_dir / "data.ddh5"
 
@@ -105,12 +112,12 @@ class DDH5Loader(BaseLoader, Node):
         t0 = datetime.now()
         ds = self.load(Path(self.file_path))
 
-        if not self.grid_toggle.value:
-            from labcore.data.tools import split_complex
-            ds = split_complex(ds).to_dataframe()
+        # if not self.grid_toggle.value:
+        #     from labcore.data.tools import split_complex
+        #     ds = split_complex(ds).to_dataframe()
 
         t1 = datetime.now()
-        elapsed_ms = (t1 - t0).microseconds * 1e-3
+        elapsed_ms = (t1 - t0).total_seconds() * 1e3
         self.status.value = (
             f"Loaded data at {t1.strftime('%Y-%m-%d %H:%M:%S')} "
             f"(in {elapsed_ms:.0f} ms)."
