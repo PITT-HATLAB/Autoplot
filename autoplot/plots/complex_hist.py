@@ -12,6 +12,8 @@ from .base import PlotNode
 class ComplexHist(PlotNode):
     """IQ hexbin histogram plot — hexbin plot of complex-valued readout data."""
 
+    logz = param.Boolean(default=False, doc="Use logarithmic color scale.")
+
     def __init__(self, *args, **kwargs):
         self.gb_select = pn.widgets.CheckButtonGroup(
             name="Group by",
@@ -20,6 +22,9 @@ class ComplexHist(PlotNode):
         )
         super().__init__(*args, **kwargs)
 
+        self.logz_cb = pn.widgets.Checkbox.from_param(
+            self.param.logz, name="Log color scale"
+        )
         self.graph_types = {"None": None, "Readout hist.": ComplexHist}
         self._update_graph_type_options()
 
@@ -34,7 +39,11 @@ class ComplexHist(PlotNode):
         if isinstance(indep, list):
             self.gb_select.options = indep
 
-    @pn.depends("data_out", "gb_select.value", "refresh_graph")
+    @pn.depends("data_out")
+    def plot_options_panel(self):
+        return self.logz_cb
+
+    @pn.depends("data_out", "gb_select.value", "logz", "refresh_graph")
     def plot_panel(self):
         self.refresh_graph = False
         layout = pn.Column()
@@ -58,6 +67,7 @@ class ComplexHist(PlotNode):
                 ylim=ylim,
                 clabel="count",
                 title=self.plot_title,
+                logz=self.logz,
             )
             layout.append(p)
 

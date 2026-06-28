@@ -14,13 +14,22 @@ class DataTable(PlotNode):
 
         self.graph_types = {"None": None, "Data Table": DataTable}
         self._update_graph_type_options()
+        self.layout = pn.Column(
+            pn.Row(self.plot_type_select),
+            self.save_card,
+            self.fit_card,
+        )
 
     def _update_graph_type_options(self):
         self.plot_type_select.options = list(self.graph_types.keys())
         if "Data Table" in self.graph_types:
             self.plot_type_select.value = "Data Table"
 
-    @pn.depends("data_out", "refresh_graph")
+    def process(self):
+        self.refresh_graph = True
+        super().process()
+
+    @pn.depends("data_out", "plot_type_select.value", "refresh_graph")
     def plot_panel(self):
         self.refresh_graph = False
         if self.data_out is None or not isinstance(self.data_out, xr.Dataset):

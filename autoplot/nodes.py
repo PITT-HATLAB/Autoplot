@@ -17,6 +17,8 @@ import param
 import xarray as xr
 from panel.widgets import RadioButtonGroup as RBG
 
+from .notify import notify_warning
+
 Data = Union[xr.Dataset, pd.DataFrame]
 DataDisplay = Optional[Union[pn.pane.DataFrame, xr.Dataset, str]]
 
@@ -277,11 +279,22 @@ class AverageNode(Node):
 
     def process(self) -> None:
         if self.data_in is not None and self.enabled:
-            indep, _ = self.data_dims(self.data_in)
-            if indep and self.dim_name in indep:
-                self.data_out = self.mean(self.data_in, self.dim_name)
-            else:
-                self.data_out = self.data_in
+            dims = [d.strip() for d in self.dim_name.split(",") if d.strip()]
+            data = self.data_in
+            for d in dims:
+                try:
+                    indep, _ = self.data_dims(data)
+                    if indep and d in indep:
+                        data = self.mean(data, d)
+                    else:
+                        notify_warning(
+                            f"Dimension '{d}' not found for averaging"
+                        )
+                except Exception as e:
+                    notify_warning(
+                        f"Failed to average over dimension '{d}': {e}"
+                    )
+            self.data_out = data
         else:
             self.data_out = self.data_in
 
@@ -317,6 +330,169 @@ class RotateIQNode(Node):
             self.data_out = self.rotate_iq(self.data_in, self.angle)
         else:
             self.data_out = self.data_in
+
+
+class WhereFilterNode(Node):
+    """Preprocessor: filters data with chained coordinate conditions."""
+
+    enabled = param.Boolean(True)
+
+    def __init__(self, **params):
+        self._conditions = []
+        self._pipeline_cb = None
+
+        super().__init__(**params)
+
+        self._toggle = pn.widgets.Switch(
+            value=False, name="Truncate", align="center")
+        self._toggle.param.watch(self._on_toggle, "value")
+
+        self._add_btn = pn.widgets.Button(
+            name="+ Add condition", button_type="default")
+        self._add_btn.on_click(self._add_condition)
+
+        self._cond_column = pn.Column()
+
+        self.layout = pn.Column(
+            self._toggle, self._cond_column, self._add_btn)
+
+    def set_pipeline_callback(self, cb):
+        self._pipeline_cb = cb
+
+    def _notify_change(self):
+        if getattr(self, '_pipeline_cb', None):
+            self._pipeline_cb()
+
+    def _on_toggle(self, *events):
+        self.enabled = self._toggle.value
+        self._notify_change()
+
+    @pn.depends("data_in", watch=True)
+    def _update_coord_options(self):
+        coords = self._get_independent_coords()
+        for cond in self._conditions:
+            current = cond["coord_select"].value
+            cond["coord_select"].options = coords
+            if current not in coords:
+                cond["coord_select"].value = None
+
+    def _get_independent_coords(self):
+        if self.data_in is None:
+            return []
+        try:
+            indep, _ = self.data_dims(self.data_in)
+            return list(indep or [])
+        except Exception:
+            if isinstance(self.data_in, xr.Dataset):
+                return list(self.data_in.dims)
+            return []
+
+    def _add_condition(self, event=None):
+        coords = self._get_independent_coords()
+
+        coord_select = pn.widgets.Select(options=coords, width=70, height=35,
+                                         margin=(0, 1, 0, 0))
+        op_select = pn.widgets.Select(options=[">", "<", ">=", "<=", "==", "sel near"],
+                                      width=50, height=20, margin=(2, 1, 0, 0))
+        val_input = pn.widgets.FloatInput(value=0.0, width=70, height=35,
+                                          margin=(0, 1, 0, 0), align='center')
+        remove_btn = pn.widgets.Button(name="X", width=25, height=25,
+                                       button_type="danger", margin=(0, 0, 0, 0),align='center')
+
+        def on_remove(event=None):
+            for i, c in enumerate(self._conditions):
+                if c["row"] is row:
+                    self._conditions.pop(i)
+                    break
+            for i, o in enumerate(self._cond_column.objects):
+                if o is row:
+                    self._cond_column.pop(i)
+                    break
+            self._notify_change()
+
+        remove_btn.on_click(on_remove)
+
+        def on_change(*events):
+            self._notify_change()
+
+        coord_select.param.watch(on_change, "value")
+        op_select.param.watch(on_change, "value")
+        val_input.param.watch(on_change, "value")
+
+        row = pn.Row(coord_select, op_select, val_input, remove_btn,
+                     margin=(0, 1, 0, 1), align='center')
+
+        self._conditions.append({
+            "coord_select": coord_select,
+            "op_select": op_select,
+            "val_input": val_input,
+            "row": row,
+        })
+        self._cond_column.append(row)
+
+    def process(self):
+        if self.data_in is None or not self.enabled:
+            self.data_out = self.data_in
+            return
+
+        active = [c for c in self._conditions
+                  if c["coord_select"].value is not None]
+        if not active:
+            self.data_out = self.data_in
+            return
+
+        data = self.data_in
+        for cond in active:
+            coord = cond["coord_select"].value
+            op = cond["op_select"].value
+            val = cond["val_input"].value
+
+            if isinstance(data, xr.Dataset):
+                data = self._apply_where_xr(data, coord, op, val)
+            elif isinstance(data, pd.DataFrame):
+                data = self._apply_where_pd(data, coord, op, val)
+
+        self.data_out = data
+
+    @staticmethod
+    def _apply_where_xr(data, coord, op, val):
+        if coord not in data.coords and coord not in data.data_vars:
+            return data
+        c = data[coord]
+        if op == ">":      return data.where(c > val, drop=True)
+        elif op == "<":    return data.where(c < val, drop=True)
+        elif op == ">=":   return data.where(c >= val, drop=True)
+        elif op == "<=":   return data.where(c <= val, drop=True)
+        elif op == "==":   return data.where(c == val, drop=True)
+        elif op == "sel near": return data.sel({coord: val}, method="nearest")
+        return data
+
+    @staticmethod
+    def _apply_where_pd(data, coord, op, val):
+        if isinstance(data.index, pd.MultiIndex) and coord in data.index.names:
+            vals = data.index.get_level_values(coord)
+            if op == "sel near":
+                nearest = vals[(vals - val).abs().argmin()]
+                return data.xs(nearest, level=coord)
+        elif data.index.name == coord:
+            vals = data.index
+            if op == "sel near":
+                nearest = vals[(vals - val).abs().argmin()]
+                return data.xs(nearest)
+        elif coord in data.columns:
+            vals = data[coord]
+            if op == "sel near":
+                nearest_idx = (vals - val).abs().idxmin()
+                return data.loc[[nearest_idx]]
+        else:
+            return data
+        if op == ">":      mask = vals > val
+        elif op == "<":    mask = vals < val
+        elif op == ">=":   mask = vals >= val
+        elif op == "<=":   mask = vals <= val
+        elif op == "==":   mask = vals == val
+        else:              return data
+        return data[mask]
 
 
 def labeled_widget(w, lbl=None):

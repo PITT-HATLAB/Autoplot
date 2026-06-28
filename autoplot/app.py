@@ -646,7 +646,7 @@ def make_template(config):
     from pathlib import Path
 
     from .loaders.ddh5 import DDH5Loader
-    from .nodes import Pipeline, SplitComplexNode, AverageNode, RotateIQNode
+    from .nodes import Pipeline, SplitComplexNode, AverageNode, RotateIQNode, WhereFilterNode
 
     from .fits import load_fits
     load_fits(config.fits)
@@ -659,14 +659,21 @@ def make_template(config):
 
     loader = DDH5Loader()
     split_node = SplitComplexNode()
+    where_node = WhereFilterNode()
     avg_node = AverageNode()
     rotate_node = RotateIQNode()
 
-    pipeline_nodes = [loader, split_node, avg_node, rotate_node]
+    pipeline_nodes = [loader, split_node, where_node, avg_node, rotate_node]
     pipeline = Pipeline(pipeline_nodes)
 
     preproc_card = pn.Card(
         pn.Row(
+            pn.Column(
+                where_node._toggle,
+                where_node._cond_column,
+                where_node._add_btn,
+                align="center",
+            ),
             pn.Column(
                 avg_node._toggle,
                 avg_node._dim_input,
@@ -762,6 +769,8 @@ def make_template(config):
     rotate_node._toggle.param.watch(on_preprocess_change, "value")
     rotate_node._angle_input.param.watch(on_preprocess_change, "value")
     loader.grid_toggle.param.watch(on_preprocess_change, "value")
+    where_node._toggle.param.watch(on_preprocess_change, "value")
+    where_node.set_pipeline_callback(pipeline.run)
 
     temp = pn.template.BootstrapTemplate(
         site="autoplot",

@@ -13,6 +13,7 @@ from autoplot.nodes import (
     AverageNode,
     RotateIQNode,
     XYSelect,
+    WhereFilterNode,
 )
 
 
@@ -139,13 +140,75 @@ class TestRotateIQNode:
         assert node.data_out["I_Re"].values[0] == 1.0
 
 
-class TestXYSelect:
-    def test_default_value(self):
-        xy = XYSelect()
-        assert xy.value == ("None", "None")
+class TestWhereFilterNode:
+    def test_single_where_xr(self):
+        ds = xr.Dataset({
+            "I": (["time"], [1.0, 2.0, 3.0, 4.0, 5.0]),
+        }, coords={"time": [0.0, 0.5, 1.0, 1.5, 2.0]})
 
-    def test_mutual_exclusion(self):
-        xy = XYSelect()
-        xy.options = ["None", "a", "b"]
-        xy.value = ("a", "a")
-        assert xy.value == ("a", "None")
+        node = WhereFilterNode(enabled=True)
+        node._conditions = [{
+            "coord_select": type("S", (), {"value": "time"})(),
+            "op_select": type("S", (), {"value": ">"})(),
+            "val_input": type("S", (), {"value": 0.6})(),
+        }]
+        node.data_in = ds
+        node.process()
+
+        out = node.data_out
+        assert len(out.time) == 3
+        assert np.allclose(out.time.values, [1.0, 1.5, 2.0])
+
+    def test_chained_where_xr(self):
+        ds = xr.Dataset({
+            "I": (["time"], [1.0, 2.0, 3.0, 4.0, 5.0]),
+        }, coords={"time": [0.0, 0.5, 1.0, 1.5, 2.0]})
+
+        node = WhereFilterNode(enabled=True)
+        node._conditions = [
+            {"coord_select": type("S", (), {"value": "time"})(),
+             "op_select": type("S", (), {"value": ">"})(),
+             "val_input": type("S", (), {"value": 0.6})()},
+            {"coord_select": type("S", (), {"value": "time"})(),
+             "op_select": type("S", (), {"value": "<"})(),
+             "val_input": type("S", (), {"value": 1.8})()},
+        ]
+        node.data_in = ds
+        node.process()
+
+        out = node.data_out
+        assert len(out.time) == 2
+        assert np.allclose(out.time.values, [1.0, 1.5])
+
+    def test_disabled_passes_through(self):
+        ds = xr.Dataset({
+            "I": (["time"], [1.0, 2.0, 3.0]),
+        }, coords={"time": [0.0, 1.0, 2.0]})
+
+        node = WhereFilterNode(enabled=False)
+        node._conditions = [{
+            "coord_select": type("S", (), {"value": "time"})(),
+            "op_select": type("S", (), {"value": ">"})(),
+            "val_input": type("S", (), {"value": 0.5})(),
+        }]
+        node.data_in = ds
+        node.process()
+        assert len(node.data_out.time) == 3
+
+    def test_no_conditions_passes_through(self):
+        ds = xr.Dataset({
+            "I": (["time"], [1.0, 2.0, 3.0]),
+        }, coords={"time": [0.0, 1.0, 2.0]})
+
+        node = WhereFilterNode(enabled=True)
+        node._conditions = []
+        node.data_in = ds
+        node.process()
+        assert len(node.data_out.time) == 3
+
+    def test_none_data_in(self):
+        node = WhereFilterNode()
+        node.data_in = None
+        node.process()
+        assert node.data_out is None
+
